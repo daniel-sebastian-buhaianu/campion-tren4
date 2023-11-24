@@ -1,149 +1,105 @@
 #include <fstream>
-#define NUMARUL_MAXIM_DE_TRENURI 100
-#define NUMARUL_DE_LINII 2
+#include <cstring>
+#define ORE_PE_ZI 24
+#define MINUTE_PE_ORA 60
+#define MINUTE_PE_ZI ORE_PE_ZI*MINUTE_PE_ORA
+#define NUMAR_MAXIM_DE_TRENURI 100
 using namespace std;
-struct Interval
-{
-    int timpSosire, timpPlecare;
-};
-struct Linie
-{
-    int nrTrenuri;
-    Interval tren[NUMARUL_MAXIM_DE_TRENURI];
-};
-bool vadTrenulCareSoseste(int, int, Linie*);
-bool toateLiniileSuntLibere(int, Linie*);
-void actualizeazaLinia(Linie &, int, int);
 int main()
 {
-    Linie L[NUMARUL_DE_LINII];
-    for (int i = 0; i < NUMARUL_DE_LINII; i++)
-    {
-        L[i].nrTrenuri = 0;
-    }
-    ifstream citeste("tren4.in");
-    int nrTrenuri;
-    citeste >> nrTrenuri;
-    int timpPlecareUltimulTren = 0;
-    int nrTrenuriVazute = 0;
-    int durataMaximaFaraTrenuri = 0;
-    int nrMaximTrenuriPeAceeasiLinie = 0;
-    while (nrTrenuri > 0)
-    {
-        int nrLinie,
-            oraSosire,
-            minutSosire,
-            minuteDeStationare;
-        citeste >> nrLinie;
-        nrLinie--; // retin liniile de la indicele 0
-        citeste >> oraSosire >> minutSosire;
-        citeste >> minuteDeStationare;
-        int timpSosireInMinute = oraSosire*60
-            + minutSosire;
-        int timpPlecareInMinute = timpSosireInMinute
-            + minuteDeStationare;
-        if (vadTrenulCareSoseste(
-                    timpSosireInMinute,
-                    timpPlecareInMinute,
-                    L))
-        {
-            nrTrenuriVazute++;
-        }
-        if (toateLiniileSuntLibere(timpSosireInMinute, L)
-                && timpPlecareUltimulTren != 0)
-        {
-            int minuteFaraTrenuri = timpSosireInMinute
-                - timpPlecareUltimulTren
-                - 1;
-            if (minuteFaraTrenuri
-                    > durataMaximaFaraTrenuri)
-            {
-                durataMaximaFaraTrenuri = minuteFaraTrenuri;
-            }
-        }
-        if (timpPlecareInMinute > timpPlecareUltimulTren)
-        {
-            timpPlecareUltimulTren = timpPlecareInMinute;
-        }
-        actualizeazaLinia(
-                L[nrLinie],
-                timpSosireInMinute,
-                timpPlecareInMinute);
-        if (L[nrLinie].nrTrenuri
-                > nrMaximTrenuriPeAceeasiLinie)
-        {
-            nrMaximTrenuriPeAceeasiLinie = L[nrLinie].nrTrenuri;
-        }
-        nrTrenuri--;
-    }
-    citeste.close();
-    ofstream scrie("tren4.out");
-    scrie << nrMaximTrenuriPeAceeasiLinie << ' ';
-    scrie << nrTrenuriVazute << ' ';
-    scrie << durataMaximaFaraTrenuri;
-    scrie.close();
-    return 0;
-
-}
-bool esteLiniaLiberaLaTimpulSosirii(
-        Linie L,
-        int timpSosire
-        )
-{
-    int nrTrenuri = L.nrTrenuri;
-    if (nrTrenuri == 0)
-    {
-        return 1;
-    }
-    return L.tren[nrTrenuri-1].timpPlecare < timpSosire;
-}
-bool toateLiniileSuntLibere(
-        int timpSosire,
-        Linie L[]
-        )
-{
-    for (int i = 0; i < NUMARUL_DE_LINII; i++)
-    {
-        if (!esteLiniaLiberaLaTimpulSosirii(
-                    L[i],
-                    timpSosire)
-           )
-        {
-            return 0;
-        }
-    } 
-    return 1;
-}
-bool devineLiniaLiberaPanaLaTimpulPlecarii(Linie L,
-        int timpPlecare)
-{
-    int nrTrenuri = L.nrTrenuri;
-    if (nrTrenuri == 0)
-    {
-        return 1;
-    }
-    return L.tren[nrTrenuri-1].timpPlecare < timpPlecare;
-}
-bool vadTrenulCareSoseste(int timpSosire, int timpPlecare,
-        Linie L[])
-{
-    if (esteLiniaLiberaLaTimpulSosirii(L[0],
-                timpSosire))
-    {
-        return 1;
-    }
-    if (devineLiniaLiberaPanaLaTimpulPlecarii(L[0],
-                timpPlecare))
-    {
-        return 1;
-    }
-    return 0;
-}
-void actualizeazaLinia(Linie & L, int timpSosireInMinute,
-        int timpPlecareInMinute)
-{
-    int nrTrenuri = L.nrTrenuri;
-    L.tren[nrTrenuri].timpSosire = timpSosireInMinute;
-    L.tren[nrTrenuri].timpPlecare = timpPlecareInMinute;
-    L.nrTrenuri++;
+	int trenVizibilLaMinutul[MINUTE_PE_ZI],
+	    nrTrenuri,
+	    nrTren,
+	    timpInceperePerioadaStudiu = 0,
+	    timpIncheierePerioadaStudiu = 0,
+	    minut,
+	    nrTrenuriLiniaUnu = 0,
+	    nrTrenuriLiniaDoi = 0;
+	bool aFostVizibilTrenul[NUMAR_MAXIM_DE_TRENURI+1];
+	// initializez vectorii cu 0
+	memset(trenVizibilLaMinutul, 0, sizeof(trenVizibilLaMinutul));
+	memset(aFostVizibilTrenul, 0, sizeof(aFostVizibilTrenul));
+	// declar fisier citire
+	ifstream citeste("tren4.in");
+	citeste >> nrTrenuri;
+	for (nrTren = 1; nrTren <= nrTrenuri; nrTren++)
+	{
+		int nrLinie,
+		    oraSosire,
+		    minutSosire,
+		    timpStationareInMinute;
+		citeste >> nrLinie
+			>> oraSosire
+			>> minutSosire
+			>> timpStationareInMinute;
+		int timpSosireInMinute = oraSosire*MINUTE_PE_ORA
+		                         + minutSosire;
+		int timpPlecareInMinute = timpSosireInMinute
+		                          + timpStationareInMinute;
+		if (nrTren == 1)
+		{
+			timpInceperePerioadaStudiu = timpSosireInMinute;
+			timpIncheierePerioadaStudiu = timpPlecareInMinute;
+		}
+		if (timpIncheierePerioadaStudiu < timpPlecareInMinute)
+		{
+			timpIncheierePerioadaStudiu = timpPlecareInMinute;
+		}
+		for (minut = timpSosireInMinute;
+		     minut <= timpPlecareInMinute; minut++)
+		{
+			if (nrLinie == 1
+			    || trenVizibilLaMinutul[minut] == 0)
+			{
+				trenVizibilLaMinutul[minut] = nrTren;
+			}
+		}
+		if (nrLinie == 1)
+		{
+			nrTrenuriLiniaUnu++;
+		}
+		else
+		{
+			nrTrenuriLiniaDoi++;
+		}
+	}
+	citeste.close();
+	int nrMaximTrenuriCareAuStationatPeAceeasiLinie =
+		nrTrenuriLiniaUnu > nrTrenuriLiniaDoi
+		? nrTrenuriLiniaUnu : nrTrenuriLiniaDoi;
+	int minuteFaraTren = 0;
+	int nrMaximMinuteFaraTren = 0;
+	for (minut = timpInceperePerioadaStudiu;
+	     minut <= timpIncheierePerioadaStudiu; minut++)
+	{
+		nrTren = trenVizibilLaMinutul[minut];
+		if (nrTren > 0)
+		{
+			aFostVizibilTrenul[nrTren] = 1;
+			if (minuteFaraTren > nrMaximMinuteFaraTren)
+			{
+				nrMaximMinuteFaraTren = minuteFaraTren;
+			}
+			minuteFaraTren = 0;
+		}
+		else
+		{
+			minuteFaraTren++;
+		}
+	}
+	int nrTrenuriVizibile = 0;
+	for (nrTren = 1; nrTren <= nrTrenuri; nrTren++)
+	{
+		if (aFostVizibilTrenul[nrTren])
+		{
+			nrTrenuriVizibile++;
+		}
+	}
+	// declar fisier scriere
+	ofstream scrie("tren4.out");
+	scrie << nrMaximTrenuriCareAuStationatPeAceeasiLinie << ' ';
+	scrie << nrTrenuriVizibile << ' ';
+	scrie << nrMaximMinuteFaraTren;
+	scrie.close();
+	return 0;
 }
